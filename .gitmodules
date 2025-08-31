@@ -1,0 +1,3 @@
+[submodule "modules/pyTelegramBotAPI"]
+	path = modules/pyTelegramBotAPI
+	url = https://github.com/eternnoir/pyTelegramBotAPI.git
