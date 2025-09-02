@@ -1,68 +1,77 @@
+import asyncio
 import telebot
-from telebot import types 
+from telebot import types
 import json
 import logging
+import os
 
-# Логирование
+from telebot.async_telebot import AsyncTeleBot
+
+# Настройка логирования и сохранение логов в папку logs
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+logging.basicConfig(
+    filename=os.path.join("logs", "bot.log"),
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG) # Выводит всю отладочную информацию в консоль
+telebot.logger.setLevel(logging.DEBUG)
 
 # Загрузка текстов из JSON файла
 with open("text.json", "r", encoding="utf-8") as f:
     text = json.load(f)
 
 # Токен бота
-bot = telebot.TeleBot("Your token here", parse_mode=None)
+bot = AsyncTeleBot("8409256017:AAE0OD0ETFLC-jWUSbw2TncCwKLwSyCZoeE", parse_mode=None)
 
-# Создание клавиатуры и указание её параметров
-markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+# Создание inline-клавиатуры
+def get_inline_markup():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton(text["buttons"]["calculator_cn"], callback_data="calculator_cn"),
+        types.InlineKeyboardButton(text["buttons"]["calculator_int"], callback_data="calculator_int"),
+        types.InlineKeyboardButton(text["buttons"]["course"], callback_data="course"),
+        types.InlineKeyboardButton(text["buttons"]["price_cn"], callback_data="price_cn"),
+        types.InlineKeyboardButton(text["buttons"]["contacts"], callback_data="contacts"),
+        types.InlineKeyboardButton(text["buttons"]["faq"], callback_data="faq"),
+        types.InlineKeyboardButton(text["buttons"]["commission"], callback_data="commission"),
+        types.InlineKeyboardButton(text["buttons"]["test"], callback_data="test")
+    )
+    return markup
 
-# Кнопки
-itembtncalc_cn = types.KeyboardButton(text["buttons"]["calculator_cn"])
-itembtncalc_int = types.KeyboardButton(text["buttons"]["calculator_int"])
-itembtncourse = types.KeyboardButton(text["buttons"]["course"])
-itembtnprice_cn = types.KeyboardButton(text["buttons"]["price_cn"])
-itembtnfaq = types.KeyboardButton(text["buttons"]["faq"])
-itembtncont = types.KeyboardButton(text["buttons"]["contacts"])
-itembtncom = types.KeyboardButton(text["buttons"]["commission"])
-itembtntst = types.KeyboardButton(text["buttons"]["test"])
+@bot.message_handler(commands=["info", "start"])
+async def send_welcome_message(message):
+    await bot.send_message(
+        message.chat.id,
+        text["welcome"],
+        reply_markup=get_inline_markup()
+    )
 
-# Обработчик всех текстовых сообщений
-@bot.message_handler(func=lambda message: True)
-def handle_buttons(message):
-    if message.text == text["buttons"]["calculator_cn"]:
-        bot.send_message(message.chat.id, text["answers"]["calculator_cn_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["course"]:
-        bot.send_message(message.chat.id, text["answers"]["course_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["faq"]:
-        bot.send_message(message.chat.id, text["answers"]["faq_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["contacts"]:
-        bot.send_message(message.chat.id, text["answers"]["contacts_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["price_cn"]:
-        bot.send_message(message.chat.id, text["answers"]["price_cn_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["calculator_int"]:
-        bot.send_message(message.chat.id, text["answers"]["calculator_int_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["test"]:
-        bot.send_message(message.chat.id, text["answers"]["test_answer"], reply_markup=markup, parse_mode="Markdown")
-    elif message.text == text["buttons"]["commission"]:
-        bot.send_message(message.chat.id, text["answers"]["commission_answer"], reply_markup=markup, parse_mode="Markdown")
+# Обработка нажатий кнопок
+@bot.callback_query_handler(func=lambda call: True)
+async def handle_inline_buttons(call):
+    data = call.data
+    answers = {
+        "calculator_cn": text["answers"]["calculator_cn_answer"],
+        "calculator_int": text["answers"]["calculator_int_answer"],
+        "course": text["answers"]["course_answer"],
+        "price_cn": text["answers"]["price_cn_answer"],
+        "contacts": text["answers"]["contacts_answer"],
+        "faq": text["answers"]["faq_answer"],
+        "commission": text["answers"]["commission_answer"],
+        "test": text["answers"]["test_answer"]
+    }
+    answer = answers.get(data, "Неизвестная команда.")
+    await bot.send_message(call.message.chat.id, answer, reply_markup=get_inline_markup(), parse_mode="Markdown")
+    await bot.answer_callback_query(call.id)
+
+if __name__ == "__main__":
     
+    # Основной цикл бота
+    async def main():
+        await bot.infinity_polling()
 
-
-# Расположение кнопок по сетке
-markup.row(itembtncalc_cn, itembtncalc_int, itembtncourse, itembtnprice_cn)
-markup.row(itembtncont, itembtnfaq, itembtncom)
-
-# Основное тело бота
-@bot.message_handler(commands=["info"])
-def send_welcome_message(message):
-   bot.send_message(
-       message.chat.id,
-       text["welcome"],
-       reply_markup=markup
-   )
-   
-# Основной цикл бота
-bot.infinity_polling()
+    asyncio.run(main())
 
 
